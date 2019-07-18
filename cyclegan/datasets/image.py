@@ -2,14 +2,15 @@ import os
 from glob import glob
 
 from torch.utils import data
+from torchvision import transforms
 from torchvision.datasets.folder import pil_loader
 
 
 class ImageFolder(data.Dataset):
 
-    def __init__(self, root, extensions=('.jpg', '.png'), transform=None):
+    def __init__(self, root, extensions=None, transform=None):
         self.root = root
-        self.extensions = extensions
+        self.extensions = extensions or ('.jpg', '.png')
         self.paths = self._glob_paths()
         self.transform = transform
 
@@ -32,16 +33,20 @@ class ImageFolder(data.Dataset):
         return len(self.paths)
 
 
-def main():
-    from torchvision import transforms
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-    ])
+class ImageFolderLoader(data.DataLoader):
 
-    trainset_a = ImageFolder('data/apple2orange/trainA', transform=transform)
-    trainset_b = ImageFolder('data/apple2orange/trainB', transform=transform)
-    loader_a = data.DataLoader(trainset_a, batch_size=32, shuffle=True, num_workers=8)
-    loader_b = data.DataLoader(trainset_b, batch_size=32, shuffle=True, num_workers=8)
+    def __init__(self, root, extensions=None, **kwargs):
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+        ])
+
+        dataset = ImageFolder(root, extensions, transform)
+        super(ImageFolderLoader, self).__init__(dataset, **kwargs)
+
+
+def main():
+    loader_a = ImageFolderLoader('data/apple2orange/trainA', batch_size=32, shuffle=True, num_workers=8)
+    loader_b = ImageFolderLoader('data/apple2orange/trainB', batch_size=32, shuffle=True, num_workers=8)
     for i, (x, y) in enumerate(zip(loader_a, loader_b)):
         print(i, x.size(), y.size())
 
