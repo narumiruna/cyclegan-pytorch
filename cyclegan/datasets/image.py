@@ -7,11 +7,18 @@ from torchvision.datasets.folder import pil_loader
 
 class ImageFolder(data.Dataset):
 
-    def __init__(self, root, ext='.jpg', transform=None):
+    def __init__(self, root, extensions=('.jpg', '.png'), transform=None):
         self.root = root
-        self.ext = ext
-        self.paths = glob(os.path.join(self.root, '*{}'.format(self.ext)))
+        self.extensions = extensions
+        self.paths = self._glob_paths()
         self.transform = transform
+
+    def _glob_paths(self):
+        paths = []
+        for ext in self.extensions:
+            pattern = os.path.join(self.root, '*{}'.format(ext))
+            paths.extend(glob(pattern))
+        return paths
 
     def __getitem__(self, index):
         img = pil_loader(self.paths[index])
