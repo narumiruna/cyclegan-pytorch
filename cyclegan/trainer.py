@@ -22,10 +22,11 @@ def mse(x, y):
 class CycleGanTrainer(object):
 
     def __init__(self, generators: List[nn.Module], discriminators: List[nn.Module], optimizers: List[optim.Optimizer],
-                 dataloaders: List[data.DataLoader], device: torch.device):
+                 schedulers, dataloaders: List[data.DataLoader], device: torch.device):
         self.gx, self.gy = generators
         self.dx, self.dy = discriminators
         self.optimizer_g, self.optimizer_d = optimizers
+        self.scheduler_g, self.scheduler_d = schedulers
         self.loader_x, self.loader_y = dataloaders
         self.device = device
 
@@ -44,6 +45,10 @@ class CycleGanTrainer(object):
     def fit(self, num_epochs=1):
         epochs = trange(1, num_epochs + 1, desc='Epochs', ncols=0)
         for epoch in epochs:
+            if epoch >= 100:
+                self.scheduler_d.step()
+                self.scheduler_g.step()
+
             loss_d, loss_g = self.train()
             self.plot_sample(epoch)
 

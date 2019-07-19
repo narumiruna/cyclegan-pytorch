@@ -3,6 +3,7 @@ import itertools
 
 import torch
 from torch import optim
+from torch.optim import lr_scheduler
 
 from cyclegan.datasets import ImageFolderLoader
 from cyclegan.models import Discriminator, ResnetGenerator
@@ -42,10 +43,14 @@ def main():
     optimizer_g = optim.Adam(itertools.chain(gx.parameters(), gy.parameters()), lr=2e-4, betas=(0.5, 0.999))
     optimizer_d = optim.Adam(itertools.chain(dx.parameters(), dy.parameters()), lr=2e-4, betas=(0.5, 0.999))
 
+    scheduler_g = lr_scheduler.CosineAnnealingLR(optimizer_g, T_max=100, eta_min=0)
+    scheduler_d = lr_scheduler.CosineAnnealingLR(optimizer_d, T_max=100, eta_min=0)
+
     trainer = CycleGanTrainer(
         [gx, gy],
         [dx, dy],
         [optimizer_g, optimizer_d],
+        [scheduler_g, scheduler_d],
         [loader_x, loader_y],
         device,
     )
