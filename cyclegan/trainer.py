@@ -67,12 +67,12 @@ class CycleGanTrainer(object):
             rec_A = self.netG_A(fake_B)
             rec_B = self.netG_B(fake_A)
 
-            # idt_A = self.netG_A(real_A)
-            # idt_B = self.netG_B(real_B)
-            # loss_idt = l1_loss(idt_A, real_A) + l1_loss(idt_B, real_B)
+            idt_A = self.netG_A(real_A)
+            idt_B = self.netG_B(real_B)
 
+            loss_idt = l1_loss(idt_A, real_A) + l1_loss(idt_B, real_B)
             loss_cyc = l1_loss(rec_A, real_A) + l1_loss(rec_B, real_B)
-            loss_g = mse(self.netD_A(fake_A), 1) + mse(self.netD_B(fake_B), 1) + 10.0 * loss_cyc
+            loss_g = mse(self.netD_A(fake_A), 1) + mse(self.netD_B(fake_B), 1) + 10.0 * loss_cyc + 5.0 * loss_idt
 
             self.optimizer_G.zero_grad()
             loss_g.backward()
@@ -97,7 +97,7 @@ class CycleGanTrainer(object):
             avg_loss_d.update(loss_da.item() + loss_db.item(), number=real_A.size(0))
             avg_loss_g.update(loss_g.item(), number=real_A.size(0))
 
-            dataloader.set_postfix_str(f'loss_d: {train_loss_d}, loss_g: {train_loss_g}')
+            dataloader.set_postfix_str(f'loss_d: {avg_loss_d}, loss_g: {avg_loss_g}')
 
         return avg_loss_d, avg_loss_g
 
