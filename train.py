@@ -45,7 +45,7 @@ def main():
         [train_loader_A, train_loader_B],
         device,
     )
-    trainer.fit(10)
+    trainer.fit(200)
 
 
 if __name__ == '__main__':

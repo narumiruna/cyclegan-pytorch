@@ -1,3 +1,5 @@
+import math
+
 from torch import nn
 
 
@@ -25,6 +27,20 @@ class Discriminator(nn.Module):
             nn.AdaptiveAvgPool2d(1),
         ]
         self.features = nn.Sequential(*layers)
+
+        # weight initialization
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out')
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0.0, 0.02)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
 
     def forward(self, x):
         return self.features(x)

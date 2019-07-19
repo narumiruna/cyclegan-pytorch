@@ -5,7 +5,7 @@ import torch
 from torch import autograd, nn, optim
 from torch.utils import data
 from torchvision.utils import save_image
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 from .metrics import Average
 
@@ -41,11 +41,12 @@ class CycleGanTrainer(object):
         self.netD_B.eval()
 
     def fit(self, num_epochs=1):
-        for epoch in range(1, num_epochs + 1):
+        epochs = trange(1, num_epochs + 1, desc='Epochs', ncols=0)
+        for epoch in epochs:
             loss_d, loss_g = self.train()
-
-            print(f'Epoch: {epoch}/{num_epochs}, discriminator loss: {loss_d}, generator loss: {loss_g}')
             self.plot_sample(epoch)
+
+            epochs.set_postfix_str(f'loss_d: {loss_d}, loss_g: {loss_g}')
 
     def train(self):
         self.set_train()
@@ -53,7 +54,9 @@ class CycleGanTrainer(object):
         train_loss_d = Average()
         train_loss_g = Average()
 
-        for i, (real_A, real_B) in enumerate(zip(self.train_loader_A, self.train_loader_B)):
+        dataloader = tqdm(zip(self.train_loader_A, self.train_loader_B), desc='Iterations', ncols=0)
+        for real_A, real_B in dataloader:
+            # train discriminator
             real_A = real_A.to(self.device)
             real_B = real_B.to(self.device)
 
@@ -76,7 +79,7 @@ class CycleGanTrainer(object):
             rec_B = self.netG_B(fake_A)
 
             loss_cyc = l1_loss(rec_A, real_A) + l1_loss(rec_B, real_B)
-            loss_g = mse(self.netG_A(fake_A), 1) + mse(self.netG_B(fake_B), 1) + loss_cyc
+            loss_g = mse(self.netG_A(fake_A), 1) + mse(self.netG_B(fake_B), 1) + 10 * loss_cyc
 
             self.optimizers_G.zero_grad()
             loss_g.backward()
@@ -86,6 +89,8 @@ class CycleGanTrainer(object):
 
             train_loss_d.update(loss_d.item(), number=batch_size)
             train_loss_g.update(loss_g.item(), number=batch_size)
+
+            dataloader.set_postfix_str(f'loss_d: {train_loss_d}, loss_g: {train_loss_g}')
 
         return train_loss_d, train_loss_g
 
@@ -115,9 +120,3 @@ class CycleGanTrainer(object):
                                   create_graph=True)[0]
 
         return (gradients.view(batch_size, -1).norm(2, dim=1) - 1).pow(2)
-
-    def init_nets(self):
-        self.netG_A.to(self.device)
-        self.netG_B.to(self.device)
-        self.netD_A.to(self.device)
-        self.netD_B.to(self.device)
