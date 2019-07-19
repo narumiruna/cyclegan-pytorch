@@ -23,7 +23,7 @@ class Discriminator(nn.Module):
             ConvINReLU(128, 256, 4, stride=2),
             ConvINReLU(256, 512, 4, stride=1),
             nn.Conv2d(512, 1, 4, 1),
-            nn.AdaptiveAvgPool2d(1),
+            # nn.AdaptiveAvgPool2d(1),
         ]
         self.features = nn.Sequential(*layers)
 
