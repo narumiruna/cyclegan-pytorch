@@ -1,11 +1,17 @@
+import os
 from typing import List
 
 import torch
 from torch import autograd, nn, optim
 from torch.utils import data
+from torchvision.utils import save_image
 from tqdm import tqdm
 
 from .metrics import Average
+
+
+def l1_loss(x, y):
+    return (x - y).abs().mean()
 
 
 def mse(x, y):
@@ -36,29 +42,66 @@ class CycleGanTrainer(object):
 
     def fit(self, num_epochs=1):
         for epoch in range(1, num_epochs + 1):
-            self.train()
+            loss_d, loss_g = self.train()
+
+            print(f'Epoch: {epoch}/{num_epochs}, discriminator loss: {loss_d}, generator loss: {loss_g}')
+            self.plot_sample(epoch)
 
     def train(self):
         self.set_train()
 
         train_loss_d = Average()
+        train_loss_g = Average()
 
         for i, (real_A, real_B) in enumerate(zip(self.train_loader_A, self.train_loader_B)):
             real_A = real_A.to(self.device)
             real_B = real_B.to(self.device)
 
-            fake_A = self.netG_A(real_B).detach()
-            fake_B = self.netG_B(real_A).detach()
+            with torch.no_grad():
+                fake_A = self.netG_A(real_B).detach()
+                fake_B = self.netG_B(real_A).detach()
 
-            loss_d = mse(self.netD_A(real_A), 1) + mse(self.netD_A(fake_A), -1)
-            loss_d += mse(self.netD_B(real_B), 1) + mse(self.netD_B(fake_B), -1)
+            loss_d = mse(self.netD_A(real_A), 1) + mse(self.netD_A(fake_A), 0)
+            loss_d += mse(self.netD_B(real_B), 1) + mse(self.netD_B(fake_B), 0)
 
             self.optimizers_D.zero_grad()
             loss_d.backward()
             self.optimizers_D.step()
 
-            train_loss_d.update(loss_d.item(), number=real_A.size(0) + real_B.size(0))
-            print(f'Iter: {i+1}, discriminator loss: {train_loss_d}')
+            # train generators
+            fake_A = self.netG_A(real_B)
+            fake_B = self.netG_B(real_A)
+
+            rec_A = self.netG_A(fake_B)
+            rec_B = self.netG_B(fake_A)
+
+            loss_cyc = l1_loss(rec_A, real_A) + l1_loss(rec_B, real_B)
+            loss_g = mse(self.netG_A(fake_A), 1) + mse(self.netG_B(fake_B), 1) + loss_cyc
+
+            self.optimizers_G.zero_grad()
+            loss_g.backward()
+            self.optimizers_G.step()
+
+            batch_size = real_A.size(0) + real_B.size(0)
+
+            train_loss_d.update(loss_d.item(), number=batch_size)
+            train_loss_g.update(loss_g.item(), number=batch_size)
+
+        return train_loss_d, train_loss_g
+
+    def plot_sample(self, epoch):
+        self.set_eval()
+
+        with torch.no_grad():
+            os.makedirs('output_dir', exist_ok=True)
+
+            real_A = next(iter(self.train_loader_A)).to(self.device)
+            real_B = next(iter(self.train_loader_B)).to(self.device)
+
+            fake_A = self.netG_A(real_B).detach()
+            fake_B = self.netG_B(real_A).detach()
+
+            save_image(torch.cat([fake_A, fake_B]), f'output_dir/{epoch}.jpg', normalize=True)
 
     def gradient_penalty(self, netD, real, fake):
         batch_size = real.size(0)
