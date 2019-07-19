@@ -40,13 +40,12 @@ def main():
                                        num_workers=8)
 
     optimizer_g = optim.Adam(itertools.chain(gx.parameters(), gy.parameters()), lr=2e-4, betas=(0.5, 0.999))
-    optimizer_dx = optim.Adam(dx.parameters(), lr=2e-4, betas=(0.5, 0.999))
-    optimizer_dy = optim.Adam(dy.parameters(), lr=2e-4, betas=(0.5, 0.999))
+    optimizer_d = optim.Adam(itertools.chain(dx.parameters(), dy.parameters()), lr=2e-4, betas=(0.5, 0.999))
 
     trainer = CycleGanTrainer(
         [gx, gy],
         [dx, dy],
-        [optimizer_g, optimizer_dx, optimizer_dy],
+        [optimizer_g, optimizer_d],
         [loader_x, loader_y],
         device,
     )

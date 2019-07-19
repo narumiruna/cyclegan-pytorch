@@ -25,7 +25,7 @@ class CycleGanTrainer(object):
                  dataloaders: List[data.DataLoader], device: torch.device):
         self.gx, self.gy = generators
         self.dx, self.dy = discriminators
-        self.optimizer_g, self.optimizer_dx, self.optimizer_dy = optimizers
+        self.optimizer_g, self.optimizer_d = optimizers
         self.loader_x, self.loader_y = dataloaders
         self.device = device
 
@@ -86,13 +86,11 @@ class CycleGanTrainer(object):
             loss_dx = (mse(self.dx(x), 1) + mse(self.dx(fake_x), 0)) / 2.0
             loss_dy = (mse(self.dy(y), 1) + mse(self.dy(fake_y), 0)) / 2.0
 
-            self.optimizer_dx.zero_grad()
-            loss_dx.backward()
-            self.optimizer_dx.step()
+            loss_d = loss_dx + loss_dy
 
-            self.optimizer_dy.zero_grad()
-            loss_dy.backward()
-            self.optimizer_dy.step()
+            self.optimizer_d.zero_grad()
+            loss_d.backward()
+            self.optimizer_d.step()
 
             # update metrics
             avg_loss_d.update(loss_dx.item() + loss_dy.item(), number=x.size(0))
