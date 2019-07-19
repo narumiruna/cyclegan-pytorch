@@ -1,1 +1,1 @@
-from .image import ImageFolder
+from .image import ImageFolder, ImageFolderLoader
