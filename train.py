@@ -21,33 +21,33 @@ def main():
 
     device = torch.device('cuda' if torch.cuda.is_available() and not args.no_cuda else 'cpu')
 
-    netD_A = Discriminator()
-    netD_B = Discriminator()
-    netG_A = ResnetGenerator()
-    netG_B = ResnetGenerator()
+    dx = Discriminator()
+    dy = Discriminator()
+    gx = ResnetGenerator()
+    gy = ResnetGenerator()
 
-    models = [netD_A, netD_B, netG_A, netG_B]
+    models = [dx, dy, gx, gy]
     for m in models:
         m.to(device)
 
-    train_loader_A = ImageFolderLoader('data/apple2orange/trainA',
+    loader_x = ImageFolderLoader('data/apple2orange/trainA',
                                        batch_size=args.batch_size,
                                        shuffle=True,
                                        num_workers=8)
-    train_loader_B = ImageFolderLoader('data/apple2orange/trainB',
+    loader_y = ImageFolderLoader('data/apple2orange/trainB',
                                        batch_size=args.batch_size,
                                        shuffle=True,
                                        num_workers=8)
 
-    optimizer_G = optim.Adam(itertools.chain(netG_A.parameters(), netG_B.parameters()), lr=2e-4, betas=(0.5, 0.999))
-    optimizer_DA = optim.Adam(netD_A.parameters(), lr=2e-4, betas=(0.5, 0.999))
-    optimizer_DB = optim.Adam(netD_B.parameters(), lr=2e-4, betas=(0.5, 0.999))
+    optimizer_g = optim.Adam(itertools.chain(gx.parameters(), gy.parameters()), lr=2e-4, betas=(0.5, 0.999))
+    optimizer_dx = optim.Adam(dx.parameters(), lr=2e-4, betas=(0.5, 0.999))
+    optimizer_dy = optim.Adam(dy.parameters(), lr=2e-4, betas=(0.5, 0.999))
 
     trainer = CycleGanTrainer(
-        [netG_A, netG_B],
-        [netD_A, netD_B],
-        [optimizer_G, optimizer_DA, optimizer_DB],
-        [train_loader_A, train_loader_B],
+        [gx, gy],
+        [dx, dy],
+        [optimizer_g, optimizer_dx, optimizer_dy],
+        [loader_x, loader_y],
         device,
     )
     trainer.fit(200)

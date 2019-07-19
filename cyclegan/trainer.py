@@ -23,23 +23,23 @@ class CycleGanTrainer(object):
 
     def __init__(self, generators: List[nn.Module], discriminators: List[nn.Module], optimizers: List[optim.Optimizer],
                  dataloaders: List[data.DataLoader], device: torch.device):
-        self.netG_A, self.netG_B = generators
-        self.netD_A, self.netD_B = discriminators
-        self.optimizer_G, self.optimizer_DA, self.optimizer_DB = optimizers
-        self.train_loader_A, self.train_loader_B = dataloaders
+        self.gx, self.gy = generators
+        self.dx, self.dy = discriminators
+        self.optimizer_g, self.optimizer_dx, self.optimizer_dy = optimizers
+        self.loader_x, self.loader_y = dataloaders
         self.device = device
 
     def set_train(self):
-        self.netG_A.train()
-        self.netG_B.train()
-        self.netD_A.train()
-        self.netD_B.train()
+        self.gx.train()
+        self.gy.train()
+        self.dx.train()
+        self.dy.train()
 
     def set_eval(self):
-        self.netG_A.eval()
-        self.netG_B.eval()
-        self.netD_A.eval()
-        self.netD_B.eval()
+        self.gx.eval()
+        self.gy.eval()
+        self.dx.eval()
+        self.dy.eval()
 
     def fit(self, num_epochs=1):
         epochs = trange(1, num_epochs + 1, desc='Epochs', ncols=0)
@@ -55,47 +55,47 @@ class CycleGanTrainer(object):
         avg_loss_d = Average()
         avg_loss_g = Average()
 
-        dataloader = tqdm(zip(self.train_loader_A, self.train_loader_B), desc='Iterations', ncols=0)
-        for real_A, real_B in dataloader:
-            real_A = real_A.to(self.device)
-            real_B = real_B.to(self.device)
+        dataloader = tqdm(zip(self.loader_x, self.loader_y), desc='Iterations', ncols=0)
+        for x, y in dataloader:
+            x = x.to(self.device)
+            y = y.to(self.device)
 
             # train generators
-            fake_A = self.netG_A(real_B)
-            fake_B = self.netG_B(real_A)
+            fake_x = self.gx(y)
+            fake_y = self.gy(x)
 
-            rec_A = self.netG_A(fake_B)
-            rec_B = self.netG_B(fake_A)
+            rec_x = self.gx(fake_y)
+            rec_y = self.gy(fake_x)
 
-            idt_A = self.netG_A(real_A)
-            idt_B = self.netG_B(real_B)
+            idt_x = self.gx(x)
+            idt_y = self.gy(y)
 
-            loss_idt = l1_loss(idt_A, real_A) + l1_loss(idt_B, real_B)
-            loss_cyc = l1_loss(rec_A, real_A) + l1_loss(rec_B, real_B)
-            loss_g = mse(self.netD_A(fake_A), 1) + mse(self.netD_B(fake_B), 1) + 10.0 * loss_cyc + 5.0 * loss_idt
+            loss_idt = l1_loss(idt_x, x) + l1_loss(idt_y, y)
+            loss_cyc = l1_loss(rec_x, x) + l1_loss(rec_y, y)
+            loss_g = mse(self.dx(fake_x), 1) + mse(self.dy(fake_y), 1) + 10.0 * loss_cyc + 5.0 * loss_idt
 
-            self.optimizer_G.zero_grad()
+            self.optimizer_g.zero_grad()
             loss_g.backward()
-            self.optimizer_G.step()
+            self.optimizer_g.step()
 
             # train discriminator
-            fake_A = fake_A.detach()
-            fake_B = fake_B.detach()
+            fake_x = fake_x.detach()
+            fake_y = fake_y.detach()
 
-            loss_da = (mse(self.netD_A(real_A), 1) + mse(self.netD_A(fake_A), 0)) / 2.0
-            loss_db = (mse(self.netD_B(real_B), 1) + mse(self.netD_B(fake_B), 0)) / 2.0
+            loss_dx = (mse(self.dx(x), 1) + mse(self.dx(fake_x), 0)) / 2.0
+            loss_dy = (mse(self.dy(y), 1) + mse(self.dy(fake_y), 0)) / 2.0
 
-            self.optimizer_DA.zero_grad()
-            loss_da.backward()
-            self.optimizer_DA.step()
+            self.optimizer_dx.zero_grad()
+            loss_dx.backward()
+            self.optimizer_dx.step()
 
-            self.optimizer_DB.zero_grad()
-            loss_db.backward()
-            self.optimizer_DB.step()
+            self.optimizer_dy.zero_grad()
+            loss_dy.backward()
+            self.optimizer_dy.step()
 
             # update metrics
-            avg_loss_d.update(loss_da.item() + loss_db.item(), number=real_A.size(0))
-            avg_loss_g.update(loss_g.item(), number=real_A.size(0))
+            avg_loss_d.update(loss_dx.item() + loss_dy.item(), number=x.size(0))
+            avg_loss_g.update(loss_g.item(), number=x.size(0))
 
             dataloader.set_postfix_str(f'loss_d: {avg_loss_d}, loss_g: {avg_loss_g}')
 
@@ -107,17 +107,17 @@ class CycleGanTrainer(object):
         with torch.no_grad():
             os.makedirs('output_dir', exist_ok=True)
 
-            real_A = next(iter(self.train_loader_A)).to(self.device)
-            real_B = next(iter(self.train_loader_B)).to(self.device)
+            x = next(iter(self.loader_x)).to(self.device)
+            y = next(iter(self.loader_y)).to(self.device)
 
-            fake_A = self.netG_A(real_B)
-            fake_B = self.netG_B(real_A)
+            fake_x = self.gx(y)
+            fake_y = self.gy(x)
 
-            rec_A = self.netG_A(fake_B)
-            rec_B = self.netG_B(fake_A)
+            rec_x = self.gx(fake_y)
+            rec_y = self.gy(fake_x)
 
-            image = torch.cat([real_A, fake_B, rec_A, real_B, fake_A, rec_B])
-            save_image(image, f'output_dir/{epoch}.jpg', normalize=True, nrow=real_A.size(0))
+            image = torch.cat([x, fake_y, rec_x, y, fake_x, rec_y])
+            save_image(image, f'output_dir/{epoch}.jpg', normalize=True, nrow=x.size(0))
 
     def gradient_penalty(self, discriminator, real, fake):
         batch_size = real.size(0)
