@@ -37,6 +37,7 @@ class ImageFolderLoader(data.DataLoader):
 
     def __init__(self, root, extensions=None, **kwargs):
         transform = transforms.Compose([
+            transforms.Resize(64),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ])

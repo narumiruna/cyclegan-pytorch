@@ -2,6 +2,7 @@ import os
 from typing import List
 
 import torch
+import torch.nn.functional as F
 from torch import autograd, nn, optim
 from torch.utils import data
 from torchvision.utils import save_image
@@ -55,7 +56,7 @@ class CycleGanTrainer(object):
         train_loss_g = Average()
 
         dataloader = tqdm(zip(self.train_loader_A, self.train_loader_B), desc='Iterations', ncols=0)
-        for real_A, real_B in dataloader:
+        for iteration, (real_A, real_B) in enumerate(dataloader):
             # train discriminator
             real_A = real_A.to(self.device)
             real_B = real_B.to(self.device)
@@ -79,7 +80,7 @@ class CycleGanTrainer(object):
             rec_B = self.netG_B(fake_A)
 
             loss_cyc = l1_loss(rec_A, real_A) + l1_loss(rec_B, real_B)
-            loss_g = mse(self.netG_A(fake_A), 1) + mse(self.netG_B(fake_B), 1) + 10 * loss_cyc
+            loss_g = mse(self.netG_A(fake_A), 1) + mse(self.netG_B(fake_B), 1) + 10.0 * loss_cyc
 
             self.optimizers_G.zero_grad()
             loss_g.backward()
@@ -106,7 +107,8 @@ class CycleGanTrainer(object):
             fake_A = self.netG_A(real_B).detach()
             fake_B = self.netG_B(real_A).detach()
 
-            save_image(torch.cat([fake_A, fake_B]), f'output_dir/{epoch}.jpg', normalize=True)
+            image = torch.cat([real_A, fake_B, real_B, fake_A])
+            save_image(image, f'output_dir/{epoch}.jpg', normalize=True)
 
     def gradient_penalty(self, netD, real, fake):
         batch_size = real.size(0)

@@ -29,9 +29,9 @@ def main():
     for m in models:
         m.to(device)
 
-    batch_size = 2
-    train_loader_A = ImageFolderLoader('data/apple2orange/trainA', batch_size=batch_size)
-    train_loader_B = ImageFolderLoader('data/apple2orange/trainB', batch_size=batch_size)
+    batch_size = 32
+    train_loader_A = ImageFolderLoader('data/apple2orange/trainA', batch_size=batch_size, num_workers=8)
+    train_loader_B = ImageFolderLoader('data/apple2orange/trainB', batch_size=batch_size, num_workers=8)
 
     itertools.chain([])
 
