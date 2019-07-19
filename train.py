@@ -12,6 +12,7 @@ from cyclegan.trainer import CycleGanTrainer
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-cuda', action='store_true')
+    parser.add_argument('--batch-size', type=int, default=1)
     return parser.parse_args()
 
 
@@ -29,11 +30,14 @@ def main():
     for m in models:
         m.to(device)
 
-    batch_size = 32
-    train_loader_A = ImageFolderLoader('data/apple2orange/trainA', batch_size=batch_size, num_workers=8)
-    train_loader_B = ImageFolderLoader('data/apple2orange/trainB', batch_size=batch_size, num_workers=8)
-
-    itertools.chain([])
+    train_loader_A = ImageFolderLoader('data/apple2orange/trainA',
+                                       batch_size=args.batch_size,
+                                       shuffle=True,
+                                       num_workers=8)
+    train_loader_B = ImageFolderLoader('data/apple2orange/trainB',
+                                       batch_size=args.batch_size,
+                                       shuffle=True,
+                                       num_workers=8)
 
     optimizer_G = optim.Adam(itertools.chain(netG_A.parameters(), netG_B.parameters()), lr=2e-4, betas=(0.5, 0.999))
     optimizer_D = optim.Adam(itertools.chain(netD_A.parameters(), netD_B.parameters()), lr=2e-4, betas=(0.5, 0.999))

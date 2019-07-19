@@ -56,21 +56,9 @@ class CycleGanTrainer(object):
         train_loss_g = Average()
 
         dataloader = tqdm(zip(self.train_loader_A, self.train_loader_B), desc='Iterations', ncols=0)
-        for iteration, (real_A, real_B) in enumerate(dataloader):
-            # train discriminator
+        for real_A, real_B in dataloader:
             real_A = real_A.to(self.device)
             real_B = real_B.to(self.device)
-
-            with torch.no_grad():
-                fake_A = self.netG_A(real_B).detach()
-                fake_B = self.netG_B(real_A).detach()
-
-            loss_d = mse(self.netD_A(real_A), 1) + mse(self.netD_A(fake_A), 0)
-            loss_d += mse(self.netD_B(real_B), 1) + mse(self.netD_B(fake_B), 0)
-
-            self.optimizers_D.zero_grad()
-            loss_d.backward()
-            self.optimizers_D.step()
 
             # train generators
             fake_A = self.netG_A(real_B)
@@ -79,17 +67,32 @@ class CycleGanTrainer(object):
             rec_A = self.netG_A(fake_B)
             rec_B = self.netG_B(fake_A)
 
+            idt_A = self.netG_A(real_A)
+            idt_B = self.netG_B(real_B)
+
+            loss_idt = l1_loss(idt_A, real_A) + l1_loss(idt_B, real_B)
             loss_cyc = l1_loss(rec_A, real_A) + l1_loss(rec_B, real_B)
-            loss_g = mse(self.netG_A(fake_A), 1) + mse(self.netG_B(fake_B), 1) + 10.0 * loss_cyc
+            loss_g = mse(self.netG_A(fake_A), 1) + mse(self.netG_B(fake_B), 1) + 10.0 * loss_cyc + 5.0 * loss_idt
 
             self.optimizers_G.zero_grad()
             loss_g.backward()
             self.optimizers_G.step()
 
-            batch_size = real_A.size(0) + real_B.size(0)
+            # train discriminator
+            fake_A = fake_A.detach()
+            fake_B = fake_B.detach()
 
-            train_loss_d.update(loss_d.item(), number=batch_size)
-            train_loss_g.update(loss_g.item(), number=batch_size)
+            loss_d = mse(self.netD_A(real_A), 1) + mse(self.netD_A(fake_A), 0)
+            loss_d = loss_d + mse(self.netD_B(real_B), 1) + mse(self.netD_B(fake_B), 0)
+            loss_d = loss_d / 4.0
+
+            self.optimizers_D.zero_grad()
+            loss_d.backward()
+            self.optimizers_D.step()
+
+            # update metrics
+            train_loss_d.update(loss_d.item(), number=real_A.size(0))
+            train_loss_g.update(loss_g.item(), number=real_A.size(0))
 
             dataloader.set_postfix_str(f'loss_d: {train_loss_d}, loss_g: {train_loss_g}')
 
@@ -110,13 +113,13 @@ class CycleGanTrainer(object):
             image = torch.cat([real_A, fake_B, real_B, fake_A])
             save_image(image, f'output_dir/{epoch}.jpg', normalize=True)
 
-    def gradient_penalty(self, netD, real, fake):
+    def gradient_penalty(self, discriminator, real, fake):
         batch_size = real.size(0)
         epsilon = torch.rand(batch_size, 1, 1, 1, device=self.device)
 
         interpolates = epsilon * real + (1 - epsilon) * fake
         interpolates = interpolates.clone().detach().requires_grad_(True)
-        gradients = autograd.grad(netD(interpolates),
+        gradients = autograd.grad(discriminator(interpolates),
                                   interpolates,
                                   grad_outputs=torch.ones(batch_size, device=self.device),
                                   create_graph=True)[0]
