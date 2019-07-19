@@ -67,12 +67,13 @@ class CycleGanTrainer(object):
             rec_x = self.gx(fake_y)
             rec_y = self.gy(fake_x)
 
-            idt_x = self.gx(x)
-            idt_y = self.gy(y)
+            # idt_x = self.gx(x)
+            # idt_y = self.gy(y)
 
-            loss_idt = l1_loss(idt_x, x) + l1_loss(idt_y, y)
+            # loss_idt = l1_loss(idt_x, x) + l1_loss(idt_y, y)
             loss_cyc = l1_loss(rec_x, x) + l1_loss(rec_y, y)
-            loss_g = mse(self.dx(fake_x), 1) + mse(self.dy(fake_y), 1) + 10.0 * loss_cyc + 5.0 * loss_idt
+            loss_g = mse(self.dx(fake_x), 1) + mse(self.dy(fake_y), 1) + 10.0 * loss_cyc 
+            # loss_g += 5.0 * loss_idt
 
             self.optimizer_g.zero_grad()
             loss_g.backward()
