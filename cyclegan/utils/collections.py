@@ -42,13 +42,3 @@ class AttrDict(dict):
 
     def is_immutable(self):
         return self.__dict__[AttrDict.IMMUTABLE]
-
-    def update(self, data):
-        if self.__dict__[AttrDict.IMMUTABLE]:
-            raise AttributeError('Attempted to udpate, but AttrDict is immutable')
-
-        for key, value in data.items():
-            if isinstance(value, dict):
-                self[key] = AttrDict(value)
-            else:
-                self[key] = value
