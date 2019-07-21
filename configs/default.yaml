@@ -1,0 +1,25 @@
+
+use_cuda: true
+
+generator:
+  name: ResnetGenerator
+
+discriminator:
+  name: Discriminator
+
+dataloader:
+  name: get_image_folder_loaders
+  root: data/apple2orange
+  batch_size: 32
+  num_workers: 8
+
+optimizer_d:
+  name: Adam
+  lr: 2.e-4
+  betas: [0.5, 0.999]
+
+optimizer_g:
+  name: Adam
+  lr: 2.e-4
+  betas: [0.5, 0.999]
+
