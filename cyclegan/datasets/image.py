@@ -45,6 +45,18 @@ class ImageFolderLoader(data.DataLoader):
         super(ImageFolderLoader, self).__init__(dataset, **kwargs)
 
 
+def get_image_folder_loaders(root, batch_size, num_workers=0):
+    loader_a = ImageFolderLoader(os.path.join(root, 'trainA'),
+                                 batch_size=batch_size,
+                                 shuffle=True,
+                                 num_workers=num_workers)
+    loader_b = ImageFolderLoader(os.path.join(root, 'trainB'),
+                                 batch_size=batch_size,
+                                 shuffle=True,
+                                 num_workers=num_workers)
+    return loader_a, loader_b
+
+
 def main():
     loader_a = ImageFolderLoader('data/apple2orange/trainA', batch_size=32, shuffle=True, num_workers=8)
     loader_b = ImageFolderLoader('data/apple2orange/trainB', batch_size=32, shuffle=True, num_workers=8)

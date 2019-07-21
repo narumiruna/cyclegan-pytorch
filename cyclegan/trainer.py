@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import Dict, List
 
 import torch
 import torch.nn.functional as F
@@ -21,11 +21,11 @@ def mse(x, y):
 
 class CycleGanTrainer(object):
 
-    def __init__(self, generators: List[nn.Module], discriminators: List[nn.Module], optimizers: List[optim.Optimizer],
-                 schedulers, dataloaders: List[data.DataLoader], device: torch.device):
-        self.gx, self.gy = generators
-        self.dx, self.dy = discriminators
-        self.optimizer_g, self.optimizer_d = optimizers
+    def __init__(self, models: dict, optimizers: dict, schedulers, dataloaders: List[data.DataLoader],
+                 device: torch.device):
+        self.gx, self.gy = models['G'], models['F']
+        self.dx, self.dy = models['DX'], models['DY']
+        self.optimizer_g, self.optimizer_d = optimizers['G'], optimizers['D']
         self.scheduler_g, self.scheduler_d = schedulers
         self.loader_x, self.loader_y = dataloaders
         self.device = device

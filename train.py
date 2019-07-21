@@ -2,56 +2,64 @@ import argparse
 import itertools
 
 import torch
-from torch import optim
 from torch.optim import lr_scheduler
 
-from cyclegan.datasets import ImageFolderLoader
-from cyclegan.models import Discriminator, ResnetGenerator
+from cyclegan.datasets import DataFactory
+from cyclegan.models import ModelFactory
+from cyclegan.optim import OptimFactory
 from cyclegan.trainer import CycleGanTrainer
+from cyclegan.utils import AttrDict
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config', type=str, default='configs/default.yaml')
     parser.add_argument('--no-cuda', action='store_true')
-    parser.add_argument('--batch-size', type=int, default=1)
     return parser.parse_args()
 
 
-def main():
+def load_config():
     args = parse_args()
+    config = AttrDict.from_yaml(args.config)
 
-    device = torch.device('cuda' if torch.cuda.is_available() and not args.no_cuda else 'cpu')
+    config.update(vars(args))
 
-    dx = Discriminator()
-    dy = Discriminator()
-    gx = ResnetGenerator()
-    gy = ResnetGenerator()
+    return config
 
-    models = [dx, dy, gx, gy]
-    for m in models:
-        m.to(device)
 
-    loader_x = ImageFolderLoader('data/apple2orange/trainA',
-                                       batch_size=args.batch_size,
-                                       shuffle=True,
-                                       num_workers=8)
-    loader_y = ImageFolderLoader('data/apple2orange/trainB',
-                                       batch_size=args.batch_size,
-                                       shuffle=True,
-                                       num_workers=8)
+def main():
+    config = load_config()
 
-    optimizer_g = optim.Adam(itertools.chain(gx.parameters(), gy.parameters()), lr=2e-4, betas=(0.5, 0.999))
-    optimizer_d = optim.Adam(itertools.chain(dx.parameters(), dy.parameters()), lr=2e-4, betas=(0.5, 0.999))
+    device = torch.device('cuda' if torch.cuda.is_available() and not config.no_cuda else 'cpu')
 
-    scheduler_g = lr_scheduler.CosineAnnealingLR(optimizer_g, T_max=100, eta_min=0)
-    scheduler_d = lr_scheduler.CosineAnnealingLR(optimizer_d, T_max=100, eta_min=0)
+    models = {
+        'G': ModelFactory.create(**config.generator),
+        'F': ModelFactory.create(**config.generator),
+        'DX': ModelFactory.create(**config.discriminator),
+        'DY': ModelFactory.create(**config.discriminator),
+    }
+
+    for model in models.values():
+        model.to(device)
+
+    params_g = itertools.chain(models['G'].parameters(), models['F'].parameters())
+    params_d = itertools.chain(models['DX'].parameters(), models['DY'].parameters())
+    optimizers = {
+        'G': OptimFactory.create(params_g, **config.optimizer_g),
+        'D': OptimFactory.create(params_d, **config.optimizer_d)
+    }
+
+    dataloaders = DataFactory.create(**config.dataloader)
+
+    scheduler_g = lr_scheduler.CosineAnnealingLR(optimizers['G'], T_max=100, eta_min=0)
+    scheduler_d = lr_scheduler.CosineAnnealingLR(optimizers['D'], T_max=100, eta_min=0)
+    schedulers = [scheduler_g, scheduler_d]
 
     trainer = CycleGanTrainer(
-        [gx, gy],
-        [dx, dy],
-        [optimizer_g, optimizer_d],
-        [scheduler_g, scheduler_d],
-        [loader_x, loader_y],
+        models,
+        optimizers,
+        schedulers,
+        dataloaders,
         device,
     )
     trainer.fit(200)
