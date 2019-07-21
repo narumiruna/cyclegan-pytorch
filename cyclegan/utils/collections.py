@@ -1,3 +1,6 @@
+from .utils import load_yaml
+
+
 class AttrDict(dict):
     IMMUTABLE = '__immutable__'
 
@@ -42,3 +45,7 @@ class AttrDict(dict):
 
     def is_immutable(self):
         return self.__dict__[AttrDict.IMMUTABLE]
+
+    @classmethod
+    def from_yaml(cls, f):
+        return cls(load_yaml(f))
