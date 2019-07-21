@@ -10,7 +10,7 @@ discriminator:
 dataloader:
   name: get_image_folder_loaders
   root: data/apple2orange
-  batch_size: 32
+  batch_size: 4
   num_workers: 8
 
 optimizer_d:
